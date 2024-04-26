@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce" xmlns:file="http://www.mulesoft.org/schema/mule/file"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:netsuite="http://www.mulesoft.org/schema/mule/netsuite" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/netsuite http://www.mulesoft.org/schema/mule/netsuite/current/mule-netsuite.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd">
+	
+	<netsuite:config name="NetSuite_Config" doc:name="NetSuite Config" doc:id="8a21cc68-d758-4431-bf50-b95496522741" >
+		<netsuite:token-based-authentication-connection consumerKey="${netsuite.consumerKey}" consumerSecret="${netsuite.consumerSecret}" tokenId="${netsuite.tokenId}" tokenSecret="${netsuite.tokenSecret}" account="${netsuite.accountId}" wsdlVersion="V2021_1" signatureAlgorithm="${netsuite.signatureAlgorithm}"/>
+	</netsuite:config>
+	<configuration-properties doc:name="Configuration properties" doc:id="7fe60627-c3cb-42f7-a11f-14ad302a1c18" file="config-local.yaml" />
+	
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="1e8cd8fe-567b-4571-9014-2e5fe5efb85f" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<salesforce:sfdc-config name="Salesforce_Config" doc:name="Salesforce Config" doc:id="312681e1-7524-4377-8d04-4c56714a8ccf" >
+		<salesforce:basic-connection username="${sfdc.username}" password="${sfdc.password}" />
+	</salesforce:sfdc-config>
+	<flow name="netsuite-custom-segment-example-mule4Flow" doc:id="2fcd2d77-8bac-4e01-af2d-f88c0c87b0a8" >
+		<http:listener doc:name="Listener" doc:id="9a9e0b0d-90da-47b2-88db-1c8fdf3b17e1" config-ref="HTTP_Listener_config" path="/sfdc"/>
+		<set-variable value="#[attributes.queryParams.id]" doc:name="Set Variable" doc:id="0697eadf-459f-4a14-9505-11097bd4a496" variableName="id"/>
+		<salesforce:query doc:name="Query" doc:id="028f8711-f998-428f-9339-7ac96d533405" config-ref="Salesforce_Config">
+			<salesforce:salesforce-query ><![CDATA[select Name, Description,DemoDemo__c from Opportunity where Id = '006Hr00001Om2veIAB']]></salesforce:salesforce-query>
+		</salesforce:query>
+		<ee:transform doc:name="Transform Message" doc:id="b8e6bda5-ca22-4cbe-8a4a-efa278ed98ea" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/xml
+ns ns0 urn:messages.platform.webservices.netsuite.com
+ns ns01 urn:sales.transactions.webservices.netsuite.com
+ns ns02 urn:core.platform.webservices.netsuite.com
+---
+{
+	ns0#add: {
+		ns0#record @("xmlns:ns01": ns01, xsi#"type": "ns01:Opportunity"): {
+			ns01#currency: {
+				ns02#name: "USA"
+			},
+			ns01#entity @(internalId: "866"): null,
+			ns01#title: payload.Name,
+			ns01#probability: "50.0",
+			ns01#exchangeRate: "1.0",
+			ns01#projectedTotal: "100.0",
+			ns01#customFieldList: {
+				ns02#customField @(internalId: "709", xsi#"type": "ns02:SelectCustomFieldRef"): {
+					ns02#value @(internalId: "1"): null
+				}
+			}
+		}
+	}
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<netsuite:add doc:name="Add" doc:id="09f596f3-a556-4851-aa83-d733e0c75bbb" config-ref="NetSuite_Config" type="Opportunity"/>
+		<ee:transform doc:name="Transform Message" doc:id="dbf534af-359b-4201-bec8-f56fcb9b527e" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+</mule>

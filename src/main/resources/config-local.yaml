@@ -1,0 +1,11 @@
+netsuite:
+  consumerKey: ""
+  consumerSecret: ""
+  tokenId: ""
+  tokenSecret: ""
+  accountId: ""
+  signatureAlgorithm: "HMAC_SHA256" 
+
+sfdc:
+  username: ""
+  password: ""
